@@ -1,5 +1,5 @@
-import copy
 import time
+import copy
 import sys
 
 GOAL = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '0']]
@@ -10,19 +10,22 @@ def main():
     print('======= 8 Puzzle Solver =======')
 
     # User can choose to use a default puzzle or create their own
-    prompt = input('Type “1” to use a default puzzle, “2” to create your own puzzle.\n')
+    prompt = input('Type “1” to use a default puzzle, \nType “2” to create your own puzzle.\n')
     choice = int(prompt)
 
     # here's a default puzzle
     if choice == 1:
-        # puzzle = (['1', '2', '3'], ['4', '5', '6'], ['7', '8', '0'])
-         puzzle = (['1', '2', '3'], ['5', '0', '6'], ['4', '7', '8'])
-        # puzzle = (['1', '3', '6'], ['5', '0', '2'], ['4', '7', '8'])
+        # puzzle = (['1', '2', '3'], ['4', '5', '6'], ['7', '8', '0'])  # depth 0
+        # puzzle = (['1', '2', '3'], ['4', '5', '6'], ['0', '7', '8'])  # depth 2
+        # puzzle = (['1', '2', '3'], ['5', '0', '6'], ['4', '7', '8'])  # depth 4
+        # puzzle = (['1', '3', '6'], ['5', '0', '2'], ['4', '7', '8'])  # depth 8
+        # puzzle = (['1', '3', '6'], ['5', '0', '7'], ['4', '8', '2'])  # depth 12
+        # puzzle = (['1', '6', '7'], ['5', '0', '3'], ['4', '8', '2'])  # depth 16
         # puzzle = (['7', '1', '2'], ['4', '8', '5'], ['6', '3', '0'])  # depth 20
-        # puzzle = (['0', '7', '2'], ['4', '6', '1'], ['3', '5', '8'])  # depth 24
-    # here's a DIY puzzle
+        puzzle = (['0', '7', '2'], ['4', '6', '1'], ['3', '5', '8'])  # depth 24
+    # user create puzzle
     elif choice == 2:
-        print('Rule1: put spaces between numbers (0-9).\n')
+        print('Rule1: put spaces between numbers (0-8).\n')
         print('Rule2: use 0 to represent blank tile.\n')
         print('Create your own puzzle now: \n')
 
@@ -33,8 +36,6 @@ def main():
         # third row
         row3 = input('Third row: ')
 
-        print('\n')
-
         # split all 3 rows by spaces
         row1 = row1.split(' ')
         row2 = row2.split(' ')
@@ -43,6 +44,7 @@ def main():
         # put all numbers in puzzle
         puzzle = row1, row2, row3
 
+        print('\n')
     # User can choose to use between these 3 algos
     algoChoice = input('\nChoose your algorithm: '
                        '\n1. Uniform Cost Search '
@@ -50,7 +52,7 @@ def main():
                        '\n3. A* with the Manhattan distance heuristic\n')
     algo = int(algoChoice)
 
-    # Running the program and printing the output
+    # run the driver function general search
     print(generalSearch(puzzle, algo))
 
 
@@ -61,6 +63,7 @@ def misplacedTiles(puzzle):
     for i in range(len(puzzle)):
         for j in range(len(puzzle)):
             # if current tile is different from goal then it's misplaced
+            # make sure that we dont count zero as misplaced
             if puzzle[i][j] != GOAL[i][j] and puzzle[i][j] != '0':
                 misplaceCount += 1
 
@@ -69,34 +72,29 @@ def misplacedTiles(puzzle):
 
 # return the distance needed for all tiles move back to the right spot
 def manhattanDistance(puzzle):
-    global gr, r, gc, c
-    goal = ['1', '2', '3', '4', '5', '6', '7', '8']
+    # r, c are row and column number of a tile for goal state puzzle
+    # row col are row and column number of a tile for current puzzle
+    global r, row, c, col
     distance = 0
 
     # 3 for loops
-    # 1st loops through all 1-8 numbers in goal by position 0-7
+    # 1st loops through numbers 1-8
     # 2nd & 3rd loop through the 3x3 puzzle
     # to compare how much distances difference between puzzle and GOAL
-    for k in range(len(goal)):
+    for k in range(1, 9):
         for i in range(len(puzzle)):
             for j in range(len(puzzle)):
-                if puzzle[i][j] == goal[k]:
+                if puzzle[i][j] == str(k) and puzzle[i][j] != 0:
+                    row = i
+                    col = j
+                if GOAL[i][j] == str(k) and GOAL[i][j] != 0:
                     r = i
                     c = j
-                if GOAL[i][j] == goal[k]:
-                    gr = i
-                    gc = j
-        distance += abs(gr - r) + abs(gc - c)
+        # sum the row and col difference to get the distance
+        distance += abs(r - row) + abs(c - col)
 
     return distance
 
-
-# swap blank tile with another tile with number horizontally
-# def swapHorizontal(puzzle)
-
-
-# swap blank tile with another tile with number vertically
-# def swapVertical(puzzle)
 
 # return new puzzle that zero has been moved up
 def moveUp(p, row, col):
@@ -144,9 +142,9 @@ def moveRight(p, row, col):
 
 # return node that is expanded to all possible
 def generateChildren(currentNode, visited):
+    # list to store child nodes
     childrenNode = []
-    row = 0
-    col = 0
+    global row, col
     # find current location of zero
     for i in range(len(currentNode.problem)):
         for j in range(len(currentNode.problem)):
@@ -185,8 +183,22 @@ def generateChildren(currentNode, visited):
     return childrenNode
 
 
+# return true if the input puzzle is the same as goal state
+def checkGoal(puzzle):
+    gp = (['1', '2', '3'], ['4', '5', '6'], ['7', '8', '0'])
+
+    if puzzle == gp:
+        return True
+    return False
+
+
 # This function is from the psuedo-code in slides provided by Prof. Keogh
 def generalSearch(problem, queueingFunction):
+    # record the time when generalSearch starts running
+    tstart = time.time()
+    # set the function only to run 1500 seconds
+    t = 1500
+
     nodesExpnd = 0  # store number of expanded nodes
     maxQSize = 0  # keep track of the maximum queue size
     q = []  # queue
@@ -194,15 +206,6 @@ def generalSearch(problem, queueingFunction):
 
     # make the start node with our puzzle
     n = Node(problem)
-    # set depth to 0
-    n.depth = 0
-    # set heuristic depending on algo choice
-    if queueingFunction == 1:  # UC
-        n.heuristic = 0
-    if queueingFunction == 2:  # MT
-        n.heuristic = misplacedTiles(n.problem)
-    if queueingFunction == 3:  # MD
-        n.heuristic = manhattanDistance(n.problem)
 
     # put start node into queue
     q.append(n)
@@ -227,7 +230,7 @@ def generalSearch(problem, queueingFunction):
 
         # print which node is the best to expand
         print("Expanding note with g(n) = ", currentnode.depth,
-              "and h(n) = ", currentnode.heuristic, ": \n")
+              ", h(n) = ", currentnode.heuristic, ": \n")
         currentnode.printPuzzle()
 
         # sort our queue by lowest h(n) + g(n)
@@ -235,8 +238,8 @@ def generalSearch(problem, queueingFunction):
         q = sorted(q, key=lambda j: j.cost)
 
         # check to see if current node is same as our goal state
-        if goal(currentnode.problem):
-            # return all data
+        if checkGoal(currentnode.problem):
+            # print all data
             print("Puzzle solved!!!\n\n" + "Expanded a total of " + str(nodesExpnd) + " nodes.\n" +
                   "Maximum number of nodes in the queue was " + str(maxQSize) +
                   ".\nThe solution depth was ", str(currentnode.depth))
@@ -255,7 +258,7 @@ def generalSearch(problem, queueingFunction):
             # increment depth
             tmp.depth = currentnode.depth + 1
 
-            # set heuristic based on algo choice
+            # set heuristic based on algoChoice
             if queueingFunction == 1:
                 tmp.heuristic = 0
             if queueingFunction == 2:
@@ -274,11 +277,17 @@ def generalSearch(problem, queueingFunction):
             if len(q) > maxQSize:
                 maxQSize = len(q)
 
-        # q = sorted(q, key=lambda n: (n.depth + n.heuristic, n.depth))
+            # Exit the system if exceeded runtime
+            if time.time() > tstart + t:
+                print('Exceeded runtime..')
+                sys.exit()
 
 
-# A node stores puzzle, depth, heuristic cost, 4 children, and an expanded boolean
-# 4 children because we can have at most 4 sub-scenarios from a particular state of where 0 can be moved
+# Node class to store each expanded node
+# problem store the 2D puzzle
+# heuristic stores h(n)
+# depth stores g(n)
+# cost stores h(n)+g(n)
 class Node:
     def __init__(self, p):
         self.problem = p
@@ -292,16 +301,6 @@ class Node:
         print(self.problem[0][0], self.problem[0][1], self.problem[0][2])
         print(self.problem[1][0], self.problem[1][1], self.problem[1][2])
         print(self.problem[2][0], self.problem[2][1], self.problem[2][2])
-
-
-# def checkGoal(p):
-#     # check if puzzle has been solved (equals goal state)
-#     if GOAL == p
-def checkGoal(puzzle):
-
-    if puzzle == GOAL:
-        return True
-    return False
 
 
 if __name__ == "__main__":
